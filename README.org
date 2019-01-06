@@ -9,15 +9,15 @@
 
 #+OPTIONS: H:3 num:nil html-postamble:nil
 
-#+title: =rmath_mt=: C library to use =Rmath.h= with the Mersenne Twister random number generator
+#+title: =rmath_mt=: C library to use the standalone Rmath library with the Mersenne Twister random number generator
 
 * Summary
 
-The standalone Rmath library provides a built-in Marsaglia-multicarry uniform random number generator. This small C library demonstrates using the Rmath library with a Mersenne Twister (MT) random number generator and with initial values as per =R=. 
+The standalone =Rmath= library provides a built-in Marsaglia-multicarry uniform random number generator and a number of non-uniform random number functions. This small =C= library demonstrates using the =Rmath= library with a Mersenne Twister (MT) random number generator and with initial values as per =R=. 
 
 The =set_seed(unsigned int, unsigned int)= function, with signature from the =Rmath.h= header, can be called to set the initial values for the MT generator, where the first argument is as per the =set.seed(n)= function in =R= and the second argument is ignored.
 
-Linking requires over-writing the functions =void set_seed(unsigned int, unsigned int)=  and =double unif_rand(void)= defined in =Rmath.h=. This requires using the static library =libRmath.a= rather than a shared library.
+Linking requires over-writing the functions =void set_seed(unsigned int, unsigned int)=  and =double unif_rand(void)= defined in =Rmath.h=. This requires using the static library =libRmath.a= rather than a shared library (e.g. =libRmath.so=).
 
 * Test
 
@@ -51,7 +51,7 @@ clean:
 	rm -f *.o
 #+end_example
 
-As per the Makefile, we first compile code in =mt_unif_rand= for the Mersenne Twister random number generator.
+As per the Makefile, we first compile code in =mt_unif_rand.c= for the Mersenne Twister random number generator.
 
 #+BEGIN_SRC sh :results silent :exports code
 gcc -c mt_unif_rand.c
@@ -79,9 +79,9 @@ int main() {
 #+END_SRC
 
 #+RESULTS:
-: 0.113703411305323
-: 0.113703411305323
-: 0.622299404814839
+: 0.1137034
+: 0.1137034
+: 0.6222994
 
 This shows that the default seed is 1234, whereas in =R= the default seed is random. We can run equivalent code in =R=:
 
