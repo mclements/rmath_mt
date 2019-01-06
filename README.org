@@ -1,0 +1,97 @@
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="http://www.pirilampo.org/styles/readtheorg/css/htmlize.css"/>
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="http://www.pirilampo.org/styles/readtheorg/css/readtheorg.css"/>
+
+#+HTML_HEAD: <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+#+HTML_HEAD: <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="http://www.pirilampo.org/styles/lib/js/jquery.stickytableheaders.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="http://www.pirilampo.org/styles/readtheorg/js/readtheorg.js"></script>
+#+HTML_HEAD: <style type="text/css">.abstract {max-width: 30em; margin-left: auto; margin-right: auto;}</style>
+
+#+OPTIONS: H:3 num:nil html-postamble:nil
+
+#+title: =rmath_mt=: C library to use =Rmath.h= with the Mersenne Twister random number generator
+
+* Summary
+
+The standalone Rmath library provides a built-in Marsaglia-multicarry uniform random number generator. This small C library demonstrates using the Rmath library with a Mersenne Twister (MT) random number generator and with initial values as per =R=. 
+
+The =set_seed(unsigned int, unsigned int)= function, with signature from the =Rmath.h= header, can be called to set the initial values for the MT generator, where the first argument is as per the =set.seed(n)= function in =R= and the second argument is ignored.
+
+Linking requires over-writing the functions =void set_seed(unsigned int, unsigned int)=  and =double unif_rand(void)= defined in =Rmath.h=. This requires using the static library =libRmath.a= rather than a shared library.
+
+* Test
+
+#+BEGIN_SRC emacs-lisp :results silent :exports none
+(org-babel-do-load-languages
+ 'org-babel-load-languages
+ '((C . t)
+   (R . t)
+   (sh . t)
+   (emacs-lisp . t)))
+#+END_SRC
+
+The =Makefile= is:
+
+#+BEGIN_SRC sh :results verbatim :exports results
+cat Makefile
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+
+LIBRMATH_A = $(shell pkg-config --variable=libdir libRmath)/libRmath.a
+
+test:
+	gcc -c mt_unif_rand.c
+	gcc -o test test.c mt_unif_rand.o ${LIBRMATH_A} 
+	./test
+
+clean:
+	rm -f test
+	rm -f *.o
+#+end_example
+
+As per the Makefile, we first compile code in =mt_unif_rand= for the Mersenne Twister random number generator.
+
+#+BEGIN_SRC sh :results silent :exports code
+gcc -c mt_unif_rand.c
+#+END_SRC
+
+Then we need to compile and link with =mt_unif_rand.o /usr/lib/libRmath.a= /in that order/. We can test this using:
+
+#+BEGIN_SRC C :libs mt_unif_rand.o /usr/lib/libRmath.a :results verbatim :exports both
+#define MATHLIB_STANDALONE
+#include <Rmath.h>
+#include <stdio.h>
+void printLn(double x) {
+  printf("%9.7f\n", x);
+}
+void r_set_seed(unsigned int seed) {
+  set_seed(seed, 1u);
+}
+int main() {
+  printLn(runif(0.0, 1.0));
+  r_set_seed(1234);
+  printLn(runif(0.0, 1.0));
+  printLn(runif(0.0, 1.0));
+  return 0;
+}
+#+END_SRC
+
+#+RESULTS:
+: 0.113703411305323
+: 0.113703411305323
+: 0.622299404814839
+
+This shows that the default seed is 1234, whereas in =R= the default seed is random. We can run equivalent code in =R=:
+
+#+BEGIN_SRC R :session *R* :exports both :results output
+set.seed(1234)
+print(runif(1))
+set.seed(1234)
+runif(2)
+#+END_SRC
+
+#+RESULTS:
+: [1] 0.1137034
+: [1] 0.1137034 0.6222994
