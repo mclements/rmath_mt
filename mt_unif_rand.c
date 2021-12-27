@@ -60,6 +60,10 @@ void set_seed(unsigned int inseed, unsigned int ignored) {
   dummy[0] = N;
 }
 
+void r_set_seed(unsigned int inseed) {
+  set_seed(inseed,1);
+}
+
 static
 double MT_unif_rand(void)
 {

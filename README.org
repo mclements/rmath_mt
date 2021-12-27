@@ -15,9 +15,9 @@
 
 The standalone =Rmath= library provides a built-in Marsaglia-multicarry uniform random number generator and a number of non-uniform random number functions. This small =C= library demonstrates using the =Rmath= library with a Mersenne Twister (MT) random number generator and with initial values as per =R=. 
 
-The =set_seed(unsigned int, unsigned int)= function, with signature from the =Rmath.h= header, can be called to set the initial values for the MT generator, where the first argument is as per the =set.seed(n)= function in =R= and the second argument is ignored.
+The =r_set_seed(unsigned int)= function can be called to set the initial values for the MT generator, where the argument is as per the =set.seed(n)= function in =R=.
 
-Linking requires over-writing the functions =void set_seed(unsigned int, unsigned int)=  and =double unif_rand(void)= defined in =Rmath.h=. This requires using the static library =libRmath.a= rather than a shared library (e.g. =libRmath.so=).
+Linking requires over-writing the functions =void set_seed(unsigned int, unsigned int)= (ignoring the second argument)  and =double unif_rand(void)=, which are both defined in =Rmath.h=. This requires using the static library =libRmath.a= rather than a shared library (e.g. =libRmath.so=).
 
 * Test
 
@@ -60,28 +60,24 @@ gcc -c mt_unif_rand.c
 Then we need to compile and link with =mt_unif_rand.o /usr/lib/libRmath.a= /in that order/. We can test this using:
 
 #+BEGIN_SRC C :libs mt_unif_rand.o /usr/lib/libRmath.a :results verbatim :exports both
-#define MATHLIB_STANDALONE
-#include <Rmath.h>
-#include <stdio.h>
-void printLn(double x) {
-  printf("%9.7f\n", x);
-}
-void r_set_seed(unsigned int seed) {
-  set_seed(seed, 1u);
-}
-int main() {
-  printLn(runif(0.0, 1.0));
-  r_set_seed(1234);
-  printLn(runif(0.0, 1.0));
-  printLn(runif(0.0, 1.0));
-  return 0;
-}
+  #include "/home/marcle/src/c/rmath_mt/mt_unif_rand.h"
+  void printLn(double x) {
+    printf("%9.7f\n", x);
+  }
+  int main() {
+    printLn(runif(0.0, 1.0));
+    r_set_seed(1234);
+    printLn(runif(0.0, 1.0));
+    printLn(runif(0.0, 1.0));
+    return 0;
+  }
 #+END_SRC
 
 #+RESULTS:
 : 0.1137034
 : 0.1137034
 : 0.6222994
+
 
 This shows that the default seed is 1234, whereas in =R= the default seed is random. We can run equivalent code in =R=:
 
