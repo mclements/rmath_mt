@@ -21,7 +21,7 @@ to set its seeds).
 
 I interpret this to mean that we /cannot/ use a user-defined random number generator with "a shared library or DLL", which suggests using static linking. 
 
-*Question: are there any good examples of re-defining =unif_rand= with the standalone Rmath library?*
+*Question: are there any good examples of re-defining unif_rand() with the standalone Rmath library?*
 
 As an example, we could set up a file =test.c=:
 
@@ -53,7 +53,9 @@ If we compile using =-static=, then we get the correct result (two values of 0.5
 : 0.500000
 : 0.500000
 
-However, if we compile with using =-static=, then we get the correct value for =unif_rand()=, but =runif(0.0,1.0)= does not use the user-defined =unif_rand()= function:
+*Question: does this code work for other users?* 
+
+However, if we compile without using =-static=, then we get the correct value for =unif_rand()=, but =runif(0.0,1.0)= does not use the user-defined =unif_rand()= function:
 
 #+begin_src sh :results output :exports both
   gcc -o test test.c -lRmath -lm
