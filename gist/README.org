@@ -1,0 +1,174 @@
+#+title: Using a user-defined random number generator with the standalone Rmath library
+#+author: Mark Clements
+
+#+options: toc:nil num:nil
+
+** Introduction and example with static linking
+
+The default random number generator with the [[https://cran.r-project.org/doc/manuals/r-release/R-admin.html#The-standalone-Rmath-library][standalone Rmath library]] is the Marsaglia-multicarry generator. This random number generator does not have good properties and it would be useful to use another random number generator (e.g. Mersenne Twister or RngStream). The =R Installation and Administration= manual, in the section "The standalone Rmath library", states that:
+
+#+begin_example
+A little care is needed to use the random-number routines. You will need to supply the uniform random number generator
+
+    double unif_rand(void)
+
+or use the one supplied (and with a shared library or DLL you may have to use the one supplied, which is the Marsaglia-multicarry with an entry point
+
+    set_seed(unsigned int, unsigned int)
+
+to set its seeds). 
+#+end_example
+
+I interpret this to mean that we /cannot/ use a user-defined random number generator with "a shared library or DLL", which suggests using static linking. 
+
+*Question: are there any good examples of re-defining =unif_rand= with the standalone Rmath library?*
+
+As an example, we could set up a file =test.c=:
+
+#+begin_src C :tangle test.c :eval no :exports code
+  // test.c
+  #define MATHLIB_STANDALONE
+  #include <Rmath.h>
+  #include <stdio.h>
+  
+  double unif_rand(void) { return 0.5; }
+  
+  int main() {
+    printf("%f\n", unif_rand());
+    printf("%f\n", runif(0, 1));
+    return 0;
+  }
+#+end_src
+
+#+RESULTS:
+
+If we compile using =-static=, then we get the correct result (two values of 0.5):
+
+#+begin_src sh :results output :exports both
+  gcc -static -o test test.c -lRmath -lm
+  ./test
+#+end_src
+
+#+RESULTS:
+: 0.500000
+: 0.500000
+
+However, if we compile with using =-static=, then we get the correct value for =unif_rand()=, but =runif(0.0,1.0)= does not use the user-defined =unif_rand()= function:
+
+#+begin_src sh :results output :exports both
+  gcc -o test test.c -lRmath -lm
+  ./test
+#+end_src
+
+#+RESULTS:
+: 0.500000
+: 0.102089
+
+** Issue with =[dpqr]wilcox=
+
+The static linking leads to an odd linking issue when we use the =[dpqr]wilcox= functions.
+
+To show that these functions work well without redefining the =unif_rand()= function:
+
+#+begin_src C :tangle test2.c :eval no :exports code
+  // test2.c
+  #define MATHLIB_STANDALONE
+  #include <Rmath.h>
+  #include <stdio.h>
+  int main() {
+    printf("%f\n", unif_rand());
+    printf("%f\n", runif(0, 1));
+    printf("%f\n", dwilcox(100, 10, 20, 0));
+    printf("%f\n", pnorm(1.96, 0, 1, 1, 0));
+    return 0;
+  }
+#+end_src
+
+#+begin_src sh :results output :exports both
+  gcc -o test2 test2.c -lRmath -lm
+  ./test2
+#+end_src
+
+#+RESULTS:
+: 0.102089
+: 0.854157
+: 0.017240
+: 0.975002
+
+These numbers are consistent with R:
+
+#+begin_src R :results output :exports both
+  RNGkind("Marsaglia-Multicarry")
+  .Random.seed = c(10401L, 1234L, 5678L) # default seeds
+  runif(2)
+  dwilcox(100, 10, 20)
+  pnorm(1.96)
+#+end_src
+
+#+RESULTS:
+: [1] 0.1020891 0.8541567
+: [1] 0.01723983
+: [1] 0.9750021
+
+
+However, if we now provide a user-defined definition for =unif_rand()=: 
+
+#+begin_src C :tangle test3.c :eval no :exports code
+  // test3.c
+  #define MATHLIB_STANDALONE
+  #include <Rmath.h>
+  #include <stdio.h>
+  
+  double unif_rand(void) { return 0.5; }
+  
+  int main() {
+    printf("%f\n", unif_rand());
+    printf("%f\n", runif(0, 1));
+    printf("%f\n", dwilcox(100, 10, 20, 0));
+    printf("%f\n", pnorm(1.96, 0, 1, 1, 0));
+    return 0;
+  }
+#+end_src
+
+And then compile with static linking:
+
+#+begin_src sh :results output :exports both :prologue "exec 2>&1" :epilogue ":"
+  gcc -static -o test3 test3.c -lRmath -lm
+#+end_src
+
+#+RESULTS:
+: /usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/11/../../../../lib/libRmath.a(std_unif.o): in function `unif_rand':
+: (.text+0x40): multiple definition of `unif_rand'; /tmp/cczQHVv1.o:test3.c:(.text+0x0): first defined here
+: collect2: error: ld returned 1 exit status
+
+If we remove the call to =dwilcox=, then all is well:
+
+#+begin_src C :tangle test4.c :eval no :exports code
+  // test4.c
+  #define MATHLIB_STANDALONE
+  #include <Rmath.h>
+  #include <stdio.h>
+  
+  double unif_rand(void) { return 0.5; }
+  
+  int main() {
+    printf("%f\n", unif_rand());
+    printf("%f\n", runif(0, 1));
+    printf("%f\n", pnorm(1.96, 0, 1, 1, 0));
+    return 0;
+  }
+#+end_src
+
+And then compile with static linking:
+
+#+begin_src sh :results output :exports both
+  gcc -static -o test4 test4.c -lRmath -lm
+  ./test4
+#+end_src
+
+#+RESULTS:
+: 0.500000
+: 0.500000
+: 0.975002
+
+*Question: can anyone explain why [dpqr]wilcox would cause problems?*
