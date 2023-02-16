@@ -57,7 +57,7 @@ int main() {
 
 We can compile and run this using:
 
-#+BEGIN_SRC sh :results output :exports results
+#+BEGIN_SRC sh :results output :exports both
   gcc --static -o test test.c mt_unif_rand.c -lRmath -lm
   ./test
 #+END_SRC
