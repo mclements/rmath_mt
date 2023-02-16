@@ -30,64 +30,56 @@ Linking requires over-writing the functions =void set_seed(unsigned int, unsigne
    (emacs-lisp . t)))
 #+END_SRC
 
-The =Makefile= is:
+The file =test.c= is:
 
-#+BEGIN_SRC sh :results verbatim :exports results
-cat Makefile
+#+BEGIN_SRC sh :results output :exports results
+cat test.c
 #+END_SRC
 
 #+RESULTS:
 #+begin_example
+#include "mt_unif_rand.h"
 
-LIBRMATH_A = $(shell pkg-config --variable=libdir libRmath)/libRmath.a
+void printLn(double x) {
+  printf("%f\n", x);
+}
 
-test:
-	gcc -c mt_unif_rand.c
-	gcc -o test test.c mt_unif_rand.o ${LIBRMATH_A} 
-	./test
-
-clean:
-	rm -f test
-	rm -f *.o
+int main() {
+  printLn(unif_rand());
+  set_seed(1234,5678);
+  printLn(runif(0.0, 1.0));
+  printLn(runif(0.0, 1.0));
+  printLn(pnorm(1.96, 0, 1, 1, 0));
+  // printLn(dwilcox(100, 10, 20, 0));
+  return 0;
+}
 #+end_example
 
-As per the Makefile, we first compile code in =mt_unif_rand.c= for the Mersenne Twister random number generator.
+We can compile and run this using:
 
-#+BEGIN_SRC sh :results silent :exports code
-gcc -c mt_unif_rand.c
-#+END_SRC
-
-Then we need to compile and link with =mt_unif_rand.o /usr/lib/libRmath.a= /in that order/. We can test this using:
-
-#+BEGIN_SRC C :libs mt_unif_rand.o /usr/lib/libRmath.a :results verbatim :exports both
-  #include "/home/marcle/src/c/rmath_mt/mt_unif_rand.h"
-  void printLn(double x) {
-    printf("%9.7f\n", x);
-  }
-  int main() {
-    printLn(runif(0.0, 1.0));
-    r_set_seed(1234);
-    printLn(runif(0.0, 1.0));
-    printLn(runif(0.0, 1.0));
-    return 0;
-  }
+#+BEGIN_SRC sh :results output :exports results
+  gcc --static -o test test.c mt_unif_rand.c -lRmath -lm
+  ./test
 #+END_SRC
 
 #+RESULTS:
-: 0.1137034
-: 0.1137034
-: 0.6222994
+: 0.113703
+: 0.113703
+: 0.622299
+: 0.975002
 
 
 This shows that the default seed is 1234, whereas in =R= the default seed is random. We can run equivalent code in =R=:
 
-#+BEGIN_SRC R :session *R* :exports both :results output
+#+BEGIN_SRC R :exports both :results output
 set.seed(1234)
 print(runif(1))
 set.seed(1234)
-runif(2)
+print(runif(2))
+print(pnorm(1.96))
 #+END_SRC
 
 #+RESULTS:
 : [1] 0.1137034
 : [1] 0.1137034 0.6222994
+: [1] 0.9750021

@@ -1,11 +1,7 @@
 
-LIBRMATH_A = $(shell pkg-config --variable=libdir libRmath)/libRmath.a
-
 test:
-	gcc -c mt_unif_rand.c
-	gcc -o test test.c mt_unif_rand.o ${LIBRMATH_A} 
+	gcc --static -o test test.c mt_unif_rand.c -lRmath -lm
 	./test
 
 clean:
-	rm -f test
-	rm -f *.o
+	rm -f test *.o
