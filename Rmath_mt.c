@@ -1,6 +1,9 @@
 #include "Rmath_mt.h"
 #include <stdio.h>
+#include <math.h>
+#include <stdint.h>
 
+//copied from src/main/RNG.c:
 typedef unsigned int Int32;
 static Int32 dummy[625];
 
@@ -48,23 +51,6 @@ static Int32 dummy[625];
 static Int32 *mt = dummy+1; /* the array for the state vector  */
 static int mti = N+1;
 
-void set_seed(unsigned int inseed, unsigned int ignored) {
-  Int32 seed = inseed;
-  int j;
-  for(j = 0; j < 50; j++)
-    seed = (69069 * seed + 1);
-  /* seed[0] is mti, *but* this is needed for historical consistency */
-  for(j = 0; j <= N; j++) {
-    seed = (69069 * seed + 1);
-    dummy[j] = seed;
-  }
-  dummy[0] = N;
-}
-
-void r_set_seed(unsigned int inseed) {
-  set_seed(inseed,1);
-}
-
 static
 double MT_unif_rand(void)
 {
@@ -105,7 +91,24 @@ double MT_unif_rand(void)
     return ( (double)y * 2.3283064365386963e-10 ); /* reals: [0,1)-interval */
 }
 
+void r_set_seed(unsigned int inseed) {
+  Int32 seed = inseed;
+  int j;
+  for(j = 0; j < 50; j++)
+    seed = (69069 * seed + 1);
+  /* seed[0] is mti, *but* this is needed for historical consistency */
+  for(j = 0; j <= N; j++) {
+    seed = (69069 * seed + 1);
+    dummy[j] = seed;
+  }
+  dummy[0] = N;
+}
+
+// user-defined RNG
 double unif_rand(void) { return MT_unif_rand(); }
+void set_seed(unsigned int inseed, unsigned int ignored) {
+  r_set_seed(inseed);
+}
 
 void show_seed() {
   printf("{mti=%u, mt={%u", dummy[0], dummy[1]);
@@ -114,8 +117,6 @@ void show_seed() {
   printf("}}\n");
 }
 
-#include <math.h>
-#include <stdint.h>
 //copied from src/main/RNG.c:
 //generate a random non-negative integer < 2 ^ bits in 16 bit chunks
 static double rbits(int bits)
@@ -128,7 +129,6 @@ static double rbits(int bits)
     // mask out the bits in the result that are not needed
     return (double) (v & ((1L << bits) - 1));
 }
-
 double R_unif_index(double dn)
 {
     // rejection sampling from integers below the next larger power of two
