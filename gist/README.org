@@ -68,7 +68,7 @@ However, if we compile without using =-static=, then we get the correct value fo
 
 ** Issue with =[dpqr]wilcox=
 
-The static linking leads to an odd linking issue when we use the =[dpqr]wilcox= functions.
+The static linking leads to a linking issue when we use the =[dpqr]wilcox= functions.
 
 To show that these functions work well without redefining the =unif_rand()= function:
 
@@ -122,6 +122,7 @@ However, if we now provide a user-defined definition for =unif_rand()=:
   #include <stdio.h>
   
   double unif_rand(void) { return 0.5; }
+  void set_seed(unsigned int a,  unsigned int b) { }
   
   int main() {
     printf("%f\n", unif_rand());
@@ -139,9 +140,12 @@ And then compile with static linking:
 #+end_src
 
 #+RESULTS:
+: /usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/11/../../../../lib/libRmath.a(std_unif.o): in function `set_seed':
+: (.text+0x0): multiple definition of `set_seed'; /tmp/ccgXiyS9.o:test3.c:(.text+0x1c): first defined here
 : /usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/11/../../../../lib/libRmath.a(std_unif.o): in function `unif_rand':
-: (.text+0x40): multiple definition of `unif_rand'; /tmp/cczQHVv1.o:test3.c:(.text+0x0): first defined here
+: (.text+0x40): multiple definition of `unif_rand'; /tmp/ccgXiyS9.o:test3.c:(.text+0x0): first defined here
 : collect2: error: ld returned 1 exit status
+: sh: 3: ./test3: not found
 
 If we remove the call to =dwilcox=, then all is well:
 
@@ -173,4 +177,74 @@ And then compile with static linking:
 : 0.500000
 : 0.975002
 
-*Question: can anyone explain why [dpqr]wilcox would cause problems?*
+*** Solution
+
+The issue is that =dwilcox()= calls =R_unif_index()=. If we redefine the latter function, then everything compiles:
+
+#+begin_src C :tangle test5.c :eval no :exports code
+  // test5.c
+  #define MATHLIB_STANDALONE
+  #include <Rmath.h>
+  #include <stdio.h>
+  
+  #include <math.h>
+  #include <stdint.h>
+  //copied from src/nmath/standalone/sunif.c
+  //copied from src/main/RNG.c:
+  //generate a random non-negative integer < 2 ^ bits in 16 bit chunks
+  static double rbits(int bits)
+  {
+    int_least64_t v = 0;
+    for (int n = 0; n <= bits; n += 16) {
+      int v1 = (int) floor(unif_rand() * 65536);
+      v = 65536 * v + v1;
+    }
+    // mask out the bits in the result that are not needed
+    return (double) (v & ((1L << bits) - 1));
+  }
+  double R_unif_index(double dn)
+  {
+    // rejection sampling from integers below the next larger power of two
+    if (dn <= 0)
+      return 0.0;
+    int bits = (int) ceil(log2(dn));
+    double dv;
+    do { dv = rbits(bits); } while (dn <= dv);
+    return dv;
+  }
+  
+  double unif_rand(void) { return 0.5; }
+  void set_seed(unsigned int seed1, unsigned int seed2) { }
+
+  int main() {
+    printf("%f\n", unif_rand());
+    set_seed(1234, 5678);
+    printf("%f\n", runif(0, 1));
+    printf("%f\n", pnorm(1.96, 0, 1, 1, 0));
+    printf("%f\n", dwilcox(100, 10, 20, 0));
+    printf("%f\n", pwilcox(100, 10, 20, 0, 0));
+    printf("%f\n", qwilcox(0.5, 10, 20, 0, 0));
+    printf("%f\n", rwilcox(10, 20));
+    return 0;
+  }
+#+end_src
+
+
+#+begin_src sh :results output :exports both
+  gcc -static -o test5 test5.c -lRmath -lm
+  ./test5
+#+end_src
+
+#+RESULTS:
+: 0.500000
+: 0.500000
+: 0.975002
+: 0.017240
+: 0.491380
+: 100.000000
+: 190.000000
+
+** Lessons
+- There are no good examples of using a user-defined uniform random number generator for the standalone Rmath library.
+- It is necessary to replace unif_rand(), set_seed() and R_unif_index() to avoid linking problems.
+- 
