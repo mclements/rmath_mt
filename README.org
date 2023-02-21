@@ -9,7 +9,7 @@
 
 #+OPTIONS: H:3 num:nil html-postamble:nil
 
-#+title: =rmath_mt=: C library to use the standalone Rmath library with the Mersenne Twister random number generator
+#+title: =Rmath_mt=: C library to use the standalone Rmath library with the Mersenne Twister random number generator
 
 * Summary
 
@@ -17,7 +17,7 @@ The standalone =Rmath= library provides a built-in Marsaglia-multicarry uniform 
 
 The =r_set_seed(unsigned int)= function can be called to set the initial values for the MT generator, where the argument is as per the =set.seed(n)= function in =R=.
 
-Linking requires over-writing the functions =void set_seed(unsigned int, unsigned int)= (ignoring the second argument)  and =double unif_rand(void)=, which are both defined in =Rmath.h=. This requires using the static library =libRmath.a= rather than a shared library (e.g. =libRmath.so=).
+Linking requires over-writing the functions =void set_seed(unsigned int, unsigned int)= (ignoring the second argument), =double unif_rand(void)= and =double R_unif_index(double)=, which are defined in =Rmath.h=. This requires using the static library =libRmath.a= rather than a shared library (e.g. =libRmath.so=).
 
 * Test
 
@@ -38,7 +38,7 @@ cat test.c
 
 #+RESULTS:
 #+begin_example
-#include "mt_unif_rand.h"
+#include "Rmath_mt.h"
 
 void printLn(double x) {
   printf("%f\n", x);
@@ -46,11 +46,14 @@ void printLn(double x) {
 
 int main() {
   printLn(unif_rand());
-  set_seed(1234,5678);
-  printLn(runif(0.0, 1.0));
+  r_set_seed(1234);
+  printLn(unif_rand());
   printLn(runif(0.0, 1.0));
   printLn(pnorm(1.96, 0, 1, 1, 0));
-  // printLn(dwilcox(100, 10, 20, 0));
+  printLn(dwilcox(100, 10, 20, 0));
+  printLn(pwilcox(100, 10, 20, 0, 0));
+  printLn(qwilcox(0.5, 10, 20, 0, 0));
+  printLn(rwilcox(10, 20));
   return 0;
 }
 #+end_example
@@ -58,7 +61,7 @@ int main() {
 We can compile and run this using:
 
 #+BEGIN_SRC sh :results output :exports both
-  gcc --static -o test test.c mt_unif_rand.c -lRmath -lm
+  gcc --static -o test test.c Rmath_mt.c -lRmath -lm
   ./test
 #+END_SRC
 
@@ -67,19 +70,31 @@ We can compile and run this using:
 : 0.113703
 : 0.622299
 : 0.975002
+: 0.017240
+: 0.491380
+: 100.000000
+: 111.000000
 
 
 This shows that the default seed is 1234, whereas in =R= the default seed is random. We can run equivalent code in =R=:
 
 #+BEGIN_SRC R :exports both :results output
-set.seed(1234)
-print(runif(1))
-set.seed(1234)
-print(runif(2))
-print(pnorm(1.96))
+  set.seed(1234)
+  print(runif(1))
+  set.seed(1234)
+  print(runif(2))
+  print(pnorm(1.96))
+  print(dwilcox(100,10,20))
+  print(pwilcox(100,10,20,0))
+  print(qwilcox(0.5,10,20))
+  print(rwilcox(1,10,20))
 #+END_SRC
 
 #+RESULTS:
 : [1] 0.1137034
 : [1] 0.1137034 0.6222994
 : [1] 0.9750021
+: [1] 0.01723983
+: [1] 0.4913801
+: [1] 100
+: [1] 111
